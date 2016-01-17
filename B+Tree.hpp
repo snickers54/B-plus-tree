@@ -1,19 +1,20 @@
 #ifndef _BPTREE_HPP_
 #define _BPTREE_HPP_
 
-
 #include "definitions.hpp"
 
-namespace bptree {
+namespace storage_struct {
 
-    class BplusTree {
+    template <typename Value>
+    class bptree {
     public:
-        BplusTree(size_t height = 3, size_t order = 4);
-        ~BplusTree();
+        bptree(size_t height, size_t order) : height(height), order(order){}
+        ~bptree(){};
+        bool insert(key, Value);
     private:
         const size_t height;
         const size_t order;
-        std::unique_ptr<node> root;
+        std::vector<node> root;
     };
 
 }

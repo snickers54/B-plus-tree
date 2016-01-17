@@ -7,53 +7,41 @@
 
 #include <iostream>
 #include <memory>
+#include <vector>
 
-namespace bptree {
+namespace storage_struct {
 
-    struct neighbor {
-        uintptr_t parent;
-        uintptr_t prev;
-        uintptr_t next;
-    };
-    struct key {
-        char k[42];
+struct key {
+    std::string k;
 
-        key(const char *str = "")
-        {
-            strncpy(k, str, sizeof(k));
-        }
-    };
-    template<typename T>
-    struct record {
-        key k;
-        T value;
-    };
+    key() = default;
+    ~key() = default;
+    explicit key(std::string str) : k(std::move(str)) {}
+};
+template <typename Value>
+struct record {
+    key k;
+    Value value;
+    record(record &&o) noexcept : k(std::move(o.k)), value(std::move(o.value)) {}
+};
 
+struct index {
+    key k;
+    uintptr_t child;
+    index(index &&i) noexcept : k(std::move(i.k)) {}
+};
 
-    struct index {
-        key k;
-        uintptr_t child;
-        index() {
-            child = 0;
-        }
-    };
+template <typename T>
+struct element {
+    uintptr_t parent;
+    uintptr_t prev;
+    uintptr_t next;
+    std::vector<T> children;
+};
 
-    struct node {
-        neighbor ptrs;
-        size_t space_left;
-        std::unique_ptr<index[]> children;
-
-        node(const size_t nb_children = 4) : children(std::make_unique<index[]>(nb_children)), space_left(nb_children) {}
-    };
-
-    template<typename T>
-    struct leaf {
-        neighbor ptrs;
-        size_t space_left;
-        std::unique_ptr<record<T>[]> row;
-
-        leaf(const size_t nb_children = 4) : row(std::make_unique<record<T>[]>(nb_children)), space_left(nb_children) {}
-    };
+template <typename Value>
+using leaf = element<record<Value>>;
+using node = element<index>;
 
 }
 #endif
