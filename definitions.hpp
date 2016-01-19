@@ -10,6 +10,13 @@
 #include <vector>
 #include <experimental/optional>
 
+namespace std {
+    #ifndef optional
+        template <typename T>
+        using optional = std::experimental::optional<T>;
+    #endif
+}
+
 namespace storage {
 
 struct key {
@@ -19,6 +26,12 @@ struct key {
     ~key() = default;
     explicit key(std::string str) : k(std::move(str)) {}
 };
+
+std::ostream& operator<<(std::ostream& os, const key& obj) {
+    os << obj.k;
+    return os;
+}
+
 template <typename Value>
 struct node;
 
@@ -27,14 +40,28 @@ struct index {
     key k;
     std::shared_ptr<node<Value>> more;
     std::shared_ptr<node<Value>> less;
-    std::experimental::optional<Value> value;
+    std::optional<Value> value;
     index(const index &) = default;
     index(index &&o) noexcept : k(std::move(o.k)), more(o.more), less(o.less), value(o.value) {}
     index(key k2, std::shared_ptr<node<Value>> c, std::shared_ptr<node<Value>> c2, Value v2) : k(k2), more(c), less(c2), value(v2) {}
-    index& operator=(index&& other) {
+    index& operator=(index&& oth) {
+        if (this != &oth) {
+            this->k = std::move(oth.k);
+            this->more = oth.more;
+            this->less = oth.less;
+            oth.more = nullptr;
+            oth.less = nullptr;
+            this->value = std::move(oth.value);
+        }
         return *this;
     }
-    index& operator=(const index&) {
+    index& operator=(const index& oth) {
+        if (this != &oth) {
+            this->k = oth.k;
+            this->more = oth.more;
+            this->less = oth.less;
+            this->value = oth.value;
+        }
         return *this;
     }
 };
