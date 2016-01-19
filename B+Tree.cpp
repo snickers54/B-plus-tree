@@ -1,23 +1,16 @@
 #include "B+Tree.hpp"
 
-namespace storage_struct {
-
-    template <typename Value>
-    bool bptree::insert(key k, Value value) {
-        if (this->root.size() == 0) {
-            node n = node{};
-            index i = index{k, value};
-            n.children.push_back(i);
-            this->root.push_back(n);
-            std::cout << this->root[0].children[0].k. << std::end;
-            return true;
-        }
-        return false;
-    }
-}
-
-
 int main() {
-    storage_struct::bptree<int> test(3, 2);
-    test.insert(storage_struct::key{"t1"}, 3);
+    storage::bptree<int> test(4);
+    test.insert(storage::key("t1"), 3);
+    test.insert(storage::key("t2"), 6);
+    test.insert(storage::key("t3"), 6);
+    test.insert(storage::key("t4"), 6);
+    test.insert(storage::key("t5"), 6);
+    test.insert(storage::key("t6"), 6);
+
+    auto obj1 = test.search(storage::key("t1"));
+    auto obj2 = test.search(storage::key("t5"));
+    std::cout << obj1->children.size() << " | " << obj2->children.size() << std::endl;
+    std::cout << obj1->children[0].k.k << " | " << obj2->children[0].k.k << std::endl;
 }

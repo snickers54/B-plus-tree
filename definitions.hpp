@@ -8,8 +8,9 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <experimental/optional>
 
-namespace storage_struct {
+namespace storage {
 
 struct key {
     std::string k;
@@ -19,29 +20,33 @@ struct key {
     explicit key(std::string str) : k(std::move(str)) {}
 };
 template <typename Value>
-struct record {
-    key k;
-    Value value;
-    record(record &&o) noexcept : k(std::move(o.k)), value(std::move(o.value)) {}
-};
+struct node;
 
+template <typename Value>
 struct index {
     key k;
-    uintptr_t child;
-    index(index &&i) noexcept : k(std::move(i.k)) {}
-};
-
-template <typename T>
-struct element {
-    uintptr_t parent;
-    uintptr_t prev;
-    uintptr_t next;
-    std::vector<T> children;
+    std::shared_ptr<node<Value>> more;
+    std::shared_ptr<node<Value>> less;
+    std::experimental::optional<Value> value;
+    index(const index &) = default;
+    index(index &&o) noexcept : k(std::move(o.k)), more(o.more), less(o.less), value(o.value) {}
+    index(key k2, std::shared_ptr<node<Value>> c, std::shared_ptr<node<Value>> c2, Value v2) : k(k2), more(c), less(c2), value(v2) {}
+    index& operator=(index&& other) {
+        return *this;
+    }
+    index& operator=(const index&) {
+        return *this;
+    }
 };
 
 template <typename Value>
-using leaf = element<record<Value>>;
-using node = element<index>;
+struct node {
+    std::shared_ptr<node> parent;
+    std::shared_ptr<node> prev;
+    std::shared_ptr<node> next;
+
+    std::vector<index<Value>> children;
+};
 
 }
 #endif
