@@ -57,14 +57,23 @@ namespace storage {
                     for (auto& v : page->children) {
                         if (v.k.k == k.k) continue;
                         page->prev->children.push_back(std::move(v));
-                        // this->remove_by_key(v.k, page);
+
                     }
+                    this->remove_by_key(page->children[0].k, page->parent);
+                    this->jump_node(page);
                 }
                 this->sort(page);
             }
             this->remove_by_key(k, page);
             this->print_tree(this->root);
             return true;
+        }
+        void print_node(std::shared_ptr<node<Value>> root) {
+            if (root == nullptr) return ;
+            for (auto& v : root->children) {
+                std::cout << "[" << v.k << "]";
+            }
+            std::cout << std::endl;
         }
     private:
         const size_t fanout;
@@ -83,13 +92,6 @@ namespace storage {
             this->print_tree((page->children[0].less) ? page->children[0].less : page->children[0].more, level + 1);
         }
 
-        void print_node(std::shared_ptr<node<Value>> root) {
-            for (auto& v : root->children) {
-                std::cout << "[" << v.k << "]";
-            }
-            std::cout << std::endl;
-        }
-
         void remove_by_key(key k, std::shared_ptr<node<Value>> page) {
             if (page == nullptr) {return;}
             for (auto it = page->children.begin(); it != page->children.end(); ++it) {
@@ -102,20 +104,17 @@ namespace storage {
             }
             // this node is empty.. we fix pointers
             if (page->children.size() == 0) {
-                if (page->prev) {
-                    page->prev->next = page->next;
-                }
-                if (page->next) {
-                    page->next->prev = page->prev;
-                }
+                this->jump_node(page);
                 // in that case we erase for good the key in parents
                 return this->remove_by_key(k, page->parent);
             }
             // else, we just assign the new key ..
-            for (auto& v : page->parent->children) {
-                if (v.k.k == k.k) {
-                    v.k.k = page->children[0].k.k;
-                    break;
+            if (page->parent) {
+                for (auto& v : page->parent->children) {
+                    if (v.k.k == k.k) {
+                        v.k.k = page->children[0].k.k;
+                        break;
+                    }
                 }
             }
         }
@@ -220,6 +219,19 @@ namespace storage {
             );
         }
 
+
+
+        // when we delete one node or leaf, we want their direct siblings to just jump it in term of prev / next ptrs ..
+        void jump_node(std::shared_ptr<node<Value>> page) {
+            if (page->prev) {
+                page->prev->next = page->next;
+            }
+            page->parent = nullptr;
+            if (page->next) {
+                page->next->prev = page->prev;
+            }
+        }
+
         std::shared_ptr<node<Value>> tree_search(key k, std::shared_ptr<node<Value>> n) {
             // if it's a leaf ..
             if (n == nullptr || (n->children[0].more == nullptr && n->children[0].less == nullptr)) {
@@ -230,15 +242,15 @@ namespace storage {
             // std::cout << "GOING THROUGH CHILDRENS AND CHECKING " << k << std::endl;
             for (auto& v : n->children) {
                 std::cout << v.k << std::endl;
-                this->print_node(v.less);
-                this->print_node(v.more);
-                if (k.k > v.k.k) {
-                    std::cout << "more ! : " << v.k << std::endl;
+                // this->print_node(v.less);
+                // this->print_node(v.more);
+                if (k.k >= v.k.k) {
+                    // std::cout << "more ! : " << v.k << std::endl;
                     tmp = v.more;
                     continue;
                 }
-                if (k.k <= v.k.k) {
-                    std::cout << "less ! : " << v.k << std::endl;
+                if (k.k < v.k.k) {
+                    // std::cout << "less ! : " << v.k << std::endl;
                     tmp = v.less;
                     break;
                 }
