@@ -1,7 +1,7 @@
 #include "B+Tree.hpp"
 
 int main() {
-    storage::bptree<int> test(6);
+    storage::bptree<int> test(4);
     test.insert(storage::key("t2"), 3);
     test.insert(storage::key("t3"), 6);
     test.insert(storage::key("t1"), 6);
@@ -20,7 +20,7 @@ int main() {
 
     test.remove(storage::key("t2"));
     test.remove(storage::key("t3"));
-    test.remove(storage::key("t14"));
+    test.remove(storage::key("t5"));
     //auto obj1 = test.search(storage::key("t12"));
     //auto obj2 = test.search(storage::key("t5"));
     //std::cout << obj1->children.size() << " | " << obj2->children.size() << std::endl;

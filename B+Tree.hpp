@@ -44,7 +44,6 @@ namespace storage {
             if (this->root->children.size() <= 0) {return false;}
             auto page = this->search(k);
             if (page == nullptr) {return false;}
-            this->print_node(page);
             std::cout << "FOUND NODE " << page << " | " << page->children.size() << " | " << page->prev << " | " << (this->fanout / 2) << std::endl;
             if ((page->children.size() - 1) < (this->fanout / 2) && page->prev) {
                 std::cout << "SIZE OF LEAF IS < this->fanout / 2 and prev = " << page->prev << std::endl;
@@ -54,12 +53,32 @@ namespace storage {
                     page->prev->children.pop_back();
                 } else {
                     // we just merge with a sibling ..
+                    auto tmpkey = page->children[0].k;
                     for (auto& v : page->children) {
                         if (v.k.k == k.k) continue;
                         page->prev->children.push_back(std::move(v));
 
                     }
-                    this->remove_by_key(page->children[0].k, page->parent);
+                    // before messing with ptrs, we should change index ptrs which were pointing to our node..
+                    // because experimental::optional implement operator bool()
+                    // so here it means, if you are not a leaf ..
+                    std::cout << "BEFORE JUMP NODE IN REMOVE BY KEY (" << tmpkey << ") "<< page->parent << std::endl;
+                    if (page->parent != nullptr) {
+                        auto counter = this->find_position_index(tmpkey, page->parent);
+                        auto parent = page->parent;
+                        this->print_node(parent);
+                        std::cout << "Found " << k << " at position : " << *counter << std::endl;
+                        if (*counter + 1 > parent->children.size() - 1 && parent->next) {
+                            std::cout << "Is in next node" << std::endl;
+                            auto next = parent->next;
+                            std::cout << next->children[0].k << ".less is goin to " << parent->children[*counter].less << std::endl;
+                            next->children[0].less = parent->children[*counter].less;
+                        } else {
+                            std::cout << parent->children[*counter + 1].k << ".less is goint to " << parent->children[*counter].less << std::endl;
+                            parent->children[*counter + 1].less = parent->children[*counter].less;
+                        }
+                    }
+                    this->remove_by_key(tmpkey, page->parent);
                     this->jump_node(page);
                 }
                 this->sort(page);
@@ -70,8 +89,9 @@ namespace storage {
         }
         void print_node(std::shared_ptr<node<Value>> root) {
             if (root == nullptr) return ;
+            std::cout << "Parent : " << root->parent << " me : " << root;
             for (auto& v : root->children) {
-                std::cout << "[" << v.k << "]";
+                std::cout << " | [(" << v.less << ") " << v.k << " (" << v.more << ")] ";
             }
             std::cout << std::endl;
         }
@@ -93,6 +113,7 @@ namespace storage {
         }
 
         void remove_by_key(key k, std::shared_ptr<node<Value>> page) {
+            std::cout << "REMOVE BY KEY : " << k << std::endl;
             if (page == nullptr) {return;}
             for (auto it = page->children.begin(); it != page->children.end(); ++it) {
                 std::cout << "CHECKING ON  " << (*it).k << std::endl;
@@ -103,19 +124,28 @@ namespace storage {
                 }
             }
             // this node is empty.. we fix pointers
+            std::cout << "SIZE OF PAGE->CHILDREN IS " << page->children.size() << std::endl;
             if (page->children.size() == 0) {
                 this->jump_node(page);
                 // in that case we erase for good the key in parents
                 return this->remove_by_key(k, page->parent);
             }
             // else, we just assign the new key ..
+            this->assign_parent(k, page);
+        }
+
+        void assign_parent(key k, std::shared_ptr<node<Value>> page) {
             if (page->parent) {
+                std::cout << "ASSIGN NEW KEY TO PARENT .. " << std::endl;
                 for (auto& v : page->parent->children) {
+                    std::cout << v.k << std::endl;
                     if (v.k.k == k.k) {
+                        std::cout << " FOUND FOUND " << std::endl;
                         v.k.k = page->children[0].k.k;
                         break;
                     }
                 }
+                this->assign_parent(k, page->parent);
             }
         }
 
@@ -126,11 +156,14 @@ namespace storage {
             size_t counter = page->children.size() - 1;
             while (counter >= (this->fanout / 2)) {
                 std::cout << "OUR COUNTER IS AT : " << counter << " : " << page->children[counter].k << std::endl;
+                if (page->children[counter].more != nullptr) {
+                    page->children[counter].more->parent = tmp;
+                }
                 tmp->children.push_back(std::move(page->children[counter--]));
                 page->children.pop_back();
             }
             // update pointers to prev / next
-            // std::cout << "POINTERS ARE SET HERE " << std::endl;
+            std::cout << "POINTERS ARE SET HERE " << std::endl;
             tmp->parent = page->parent;
             tmp->prev = page;
             tmp->next = page->next;
@@ -138,7 +171,7 @@ namespace storage {
             if (tmp->next != nullptr) {
                 tmp->next->prev = tmp;
             }
-            // std::cout << "STARTING SORTING OBJECTS" << std::endl;
+            std::cout << "STARTING SORTING OBJECTS" << std::endl;
             this->sort(tmp);
              std::cout << "STARTING INSERTING PARENTS " << page->parent << " " << tmp << std::endl;
             this->insert_parent(page->parent, page);
@@ -162,7 +195,7 @@ namespace storage {
                     std::cout << "WE HAVE TO SPLIT OUR PARENT" << std::endl;
                     this->split(parent);
                 }
-                std::cout << "PARENT WAS NOT NULL" << std::endl;
+                std::cout << "PARENT WAS NOT NULL " << std::endl;
                 parent->children.emplace_back(page->next->children[0].k, page->next, page, false);
                 this->sort(parent);
                 // here we have to find the index just before the one we inserted, to change his less / more pointers
@@ -170,11 +203,7 @@ namespace storage {
                 auto counter = this->find_position_index(page->next->children[0].k, parent);
                 // experimental::optional is implementing operator bool() ..
                 if (counter) {
-                    // std::cout << (*counter) << " IS THE POSITION" << std::endl;
-                    if (*counter - 1 > 0) {
-                        parent->children[(*counter) - 1].more = page->next;
-                    }
-
+                    std::cout << (*counter) << " IS THE POSITION" << std::endl;
                     if ((*counter) + 1 < parent->children.size()) {
                         parent->children[(*counter) + 1].less = page->next;
                     }
@@ -186,11 +215,12 @@ namespace storage {
         std::optional<size_t> find_position_index(key k, std::shared_ptr<node<Value>> page) {
             size_t counter = 0;
             std::optional<size_t> result;
+            std::cout << page->children.size() << std::endl;
             while (counter < page->children.size()) {
                 std::cout << page->children[counter].k << std::endl;
                 if (page->children[counter].k.k == k.k) {
                     result = counter;
-                    // std::cout << "FOUND " << k << " : " << counter << std::endl;
+                    std::cout << "FOUND " << k << " : " << counter << std::endl;
                     break;
                 }
                 counter++;
@@ -223,6 +253,7 @@ namespace storage {
 
         // when we delete one node or leaf, we want their direct siblings to just jump it in term of prev / next ptrs ..
         void jump_node(std::shared_ptr<node<Value>> page) {
+
             if (page->prev) {
                 page->prev->next = page->next;
             }
