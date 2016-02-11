@@ -11,9 +11,20 @@ namespace storage {
     public:
         bptree(size_t fanout) : fanout(fanout), root(std::make_shared<node<Value>>()){}
         ~bptree(){};
-        std::shared_ptr<node<Value>> search(key k) {
+        std::shared_ptr<node<Value>> search_node(key k) {
             return this->tree_search(k, this->root);
         }
+
+        index<Value> *search(key k) {
+            auto node = this->tree_search(k, this->root);
+            for (auto& v : node->children) {
+                if (v.k.k == k.k) {
+                    return &v;
+                }
+            }
+            return nullptr;
+        }
+
         void insert(key k, Value value) {
             std::cout << "-------------> INSERTING " << k.k << std::endl;
             // we assume our b+tree is empty
@@ -22,7 +33,7 @@ namespace storage {
             if (this->root->children.size() > 0) {
                 // then we are looking for the corresponding node to insert into
                 // std::cout << "BTREE IS NOT EMPTY" << std::endl;
-                page = this->search(k);
+                page = this->search_node(k);
             }
             // std::cout << "PAGE SIZE : " << page->children.size() << std::endl;
             // here, for simplicity I add the node before spliting, avoiding to check if I have to insert on this node or the new one..
@@ -42,7 +53,7 @@ namespace storage {
         bool remove(key k) {
             std::cout << "-------------> REMOVING " << k.k << std::endl;
             if (this->root->children.size() <= 0) {return false;}
-            auto page = this->search(k);
+            auto page = this->search_node(k);
             if (page == nullptr) {return false;}
             std::cout << "FOUND NODE " << page << " | " << page->children.size() << " | " << page->prev << " | " << (this->fanout / 2) << std::endl;
             if ((page->children.size() - 1) < (this->fanout / 2) && page->prev) {
@@ -94,6 +105,14 @@ namespace storage {
                 std::cout << " | [(" << v.less << ") " << v.k << " (" << v.more << ")] ";
             }
             std::cout << std::endl;
+        }
+
+        bool update(key k, Value value) {
+            auto index = this->search(k);
+            if (index == nullptr) return false;
+            std::optional<Value> tmp = value;
+            index->value = std::move(tmp);
+            return true;
         }
     private:
         const size_t fanout;

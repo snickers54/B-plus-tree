@@ -21,8 +21,11 @@ int main() {
     test.remove(storage::key("t2"));
     test.remove(storage::key("t3"));
     test.remove(storage::key("t5"));
-    //auto obj1 = test.search(storage::key("t12"));
-    //auto obj2 = test.search(storage::key("t5"));
-    //std::cout << obj1->children.size() << " | " << obj2->children.size() << std::endl;
-    //std::cout << obj1->children[0].k << " | " << obj2->children[0].k << std::endl;
+    auto obj1 = test.search(storage::key("t12"));
+    auto obj2 = test.search(storage::key("t5"));
+    std::cout << (*obj1->value) << std::endl;
+
+    test.update(storage::key("t12"), 42);
+    std::cout << (*obj1->value) << std::endl;
+
 }
