@@ -4,11 +4,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 
 #include <iostream>
 #include <memory>
 #include <vector>
 #include <experimental/optional>
+#include <utility>
 
 namespace std {
     #ifndef optional
@@ -24,7 +26,26 @@ struct key {
 
     key() = default;
     ~key() = default;
-    explicit key(std::string str) : k(std::move(str)) {}
+    key(const char *str) : k(std::string(str)) {}
+    key(std::string str) : k(std::move(str)) {}
+    const bool operator <(const key& rhs) const {
+       return this->k < rhs.k;
+    }
+    const bool operator <=(const key& rhs) const {
+        return this->k <= rhs.k;
+    }
+    const bool operator >(const key& rhs) const {
+        return this->k > rhs.k;
+    }
+    const bool operator >=(const key& rhs) const {
+        return this->k >= rhs.k;
+    }
+    const bool operator ==(const key& rhs) const {
+        return this->k == rhs.k;
+    }
+    friend void swap(key& a, key& b) {
+      std::swap(a.k, b.k);
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const key& obj) {
@@ -43,7 +64,7 @@ struct index {
     std::optional<Value> value;
     index(const index &) = default;
     index(index &&o) noexcept : k(std::move(o.k)), more(o.more), less(o.less), value(o.value) {}
-    index(key k2, std::shared_ptr<node<Value>> c, std::shared_ptr<node<Value>> c2, Value v2) : k(k2), more(c), less(c2), value(v2) {}
+    index(key k2, std::shared_ptr<node<Value>> c, std::shared_ptr<node<Value>> c2, std::optional<Value> v2) : k(k2), more(c), less(c2), value(v2) {}
     index& operator=(index&& oth) {
         if (this != &oth) {
             this->k = std::move(oth.k);

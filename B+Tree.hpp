@@ -8,21 +8,81 @@ namespace storage {
 
     template <typename Value>
     class bptree {
+    private:
+        class iterator : public std::iterator<std::input_iterator_tag, std::shared_ptr<node<Value>>> {
+
+            public:
+                iterator(std::shared_ptr<node<Value>>pointer, size_t pos) : pointer(pointer), pos(pos){}
+                bool operator==(const iterator& rhs) {
+                    return (this->pointer == rhs.pointer && (this->pos) == (rhs.pos));
+                }
+                bool operator!=(const iterator& rhs) {
+                    return (this->pointer != rhs.pointer || (this->pos) != (rhs.pos));
+                }
+                //etc)
+
+                void operator++() {
+                    ++this->pos;
+                    // std::cout << "position " << this->pos << std::endl;
+                    if (this->pos >= this->pointer->children.size()) {
+                        // std::cout << "passing from " << this->pointer << " to " << this->pointer->next << std::endl;
+                        this->pointer = this->pointer->next;
+                        this->pos = 0;
+                    }
+                }
+
+                std::optional<Value> operator*() {
+                    std::optional<Value> option;
+                    if (this->pointer) {
+                        option = this->pointer->children[this->pos].value;
+                    }
+                    return option;
+                }
+
+                ~iterator(){}
+
+            private:
+                size_t pos = 0;
+                std::shared_ptr<node<Value>> pointer;
+        };
     public:
+
+        /* BPTREE class */
         bptree(size_t fanout) : fanout(fanout), root(std::make_shared<node<Value>>()){}
         ~bptree(){};
-        std::shared_ptr<node<Value>> search_node(key k) {
-            return this->tree_search(k, this->root);
+
+        iterator search(key k)  {
+            auto node = this->tree_search(k, this->root);
+            size_t pos = 0;
+            for (auto& v : node->children) {
+                if (v.k == k) {
+                    return iterator(node, pos);
+                }
+                pos++;
+            }
+            return iterator(nullptr, 0);
         }
 
-        index<Value> *search(key k) {
-            auto node = this->tree_search(k, this->root);
-            for (auto& v : node->children) {
-                if (v.k.k == k.k) {
-                    return &v;
-                }
+        std::pair<iterator, iterator> search_range(key k1, key k2) {
+            if (k2 < k1) {
+                std::swap(k1, k2);
             }
-            return nullptr;
+            auto it_start = this->search(k1);
+            auto it_end = this->search(k2);
+            if ((*it_end)) {
+                ++it_end;
+            } else {
+                it_end = iterator(nullptr, 0);
+            }
+            return std::make_pair(it_start, it_end);
+        }
+
+        iterator begin() {
+            return iterator(this->first(this->root), 0);
+        }
+
+        iterator end() {
+            return iterator(nullptr, 0);
         }
 
         void insert(key k, Value value) {
@@ -44,6 +104,7 @@ namespace storage {
                 this->split(page);
             }
             this->print_tree(this->root);
+            this->size++;
         }
 
         void print_tree(std::shared_ptr<node<Value>> root) {
@@ -66,7 +127,7 @@ namespace storage {
                     // we just merge with a sibling ..
                     auto tmpkey = page->children[0].k;
                     for (auto& v : page->children) {
-                        if (v.k.k == k.k) continue;
+                        if (v.k == k) continue;
                         page->prev->children.push_back(std::move(v));
 
                     }
@@ -96,11 +157,12 @@ namespace storage {
             }
             this->remove_by_key(k, page);
             this->print_tree(this->root);
+            this->size--;
             return true;
         }
         void print_node(std::shared_ptr<node<Value>> root) {
             if (root == nullptr) return ;
-            std::cout << "Parent : " << root->parent << " me : " << root;
+            std::cout << "Parent : " << root->parent << " me : " << root << "NEXT : " << root->next << " PREV : " << root->prev ;
             for (auto& v : root->children) {
                 std::cout << " | [(" << v.less << ") " << v.k << " (" << v.more << ")] ";
             }
@@ -108,7 +170,7 @@ namespace storage {
         }
 
         bool update(key k, Value value) {
-            auto index = this->search(k);
+            auto index = this->search_index(k);
             if (index == nullptr) return false;
             std::optional<Value> tmp = value;
             index->value = std::move(tmp);
@@ -116,7 +178,13 @@ namespace storage {
         }
     private:
         const size_t fanout;
+        size_t size = 0;
         std::shared_ptr<node<Value>> root;
+
+        std::shared_ptr<node<Value>> search_node(key k) {
+            return this->tree_search(k, this->root);
+        }
+
 
         void print_tree(std::shared_ptr<node<Value>> page, size_t level) {
             if (page == nullptr) return ;
@@ -158,7 +226,7 @@ namespace storage {
                 std::cout << "ASSIGN NEW KEY TO PARENT .. " << std::endl;
                 for (auto& v : page->parent->children) {
                     std::cout << v.k << std::endl;
-                    if (v.k.k == k.k) {
+                    if (v.k == k) {
                         std::cout << " FOUND FOUND " << std::endl;
                         v.k.k = page->children[0].k.k;
                         break;
@@ -197,12 +265,14 @@ namespace storage {
         }
 
         void insert_parent(std::shared_ptr<node<Value>> parent, std::shared_ptr<node<Value>> page) {
+            using namespace std::experimental;
+
             // no parent exists because we are on the root, which means we have to create a new upper root
             if (parent == nullptr) {
                 // std::cout << "parent is null, we are at root level .. " << std::endl;
                 auto new_root = std::make_shared<node<Value>>();
                 // std::cout << "STARTING ADDING INDEX TO THE NEW ROOT POINTER " << page->next << " | " << page << std::endl;
-                new_root->children.emplace_back(page->next->children[0].k, page->next, page, false);
+                new_root->children.emplace_back(page->next->children[0].k, page->next, page, nullopt);
                 // std::cout << "STARTING PROMOTING PARENTS" << std::endl;
                 this->promote_parent(this->root, new_root);
                 // std::cout << "ASSIGNING NEW ROOT" << std::endl;
@@ -215,7 +285,7 @@ namespace storage {
                     this->split(parent);
                 }
                 std::cout << "PARENT WAS NOT NULL " << std::endl;
-                parent->children.emplace_back(page->next->children[0].k, page->next, page, false);
+                parent->children.emplace_back(page->next->children[0].k, page->next, page, nullopt);
                 this->sort(parent);
                 // here we have to find the index just before the one we inserted, to change his less / more pointers
                 std::cout << " LOOKING FOR INDEX OF " << page->next->children[0].k << std::endl;
@@ -281,7 +351,23 @@ namespace storage {
                 page->next->prev = page->prev;
             }
         }
-
+        index<Value> *search_index(key k)  {
+            auto node = this->tree_search(k, this->root);
+            size_t pos = 0;
+            for (auto& v : node->children) {
+                if (v.k == k) {
+                    return &v;
+                }
+                pos++;
+            }
+            return nullptr;
+        }
+        std::shared_ptr<node<Value>> first(std::shared_ptr<node<Value>> ptr) {
+            if (ptr->children[0].less == nullptr) {
+                return ptr;
+            }
+            return this->first(ptr->children[0].less);
+        }
         std::shared_ptr<node<Value>> tree_search(key k, std::shared_ptr<node<Value>> n) {
             // if it's a leaf ..
             if (n == nullptr || (n->children[0].more == nullptr && n->children[0].less == nullptr)) {
@@ -291,15 +377,15 @@ namespace storage {
             std::shared_ptr<node<Value>> tmp = nullptr;
             // std::cout << "GOING THROUGH CHILDRENS AND CHECKING " << k << std::endl;
             for (auto& v : n->children) {
-                std::cout << v.k << std::endl;
+                //std::cout << v.k << std::endl;
                 // this->print_node(v.less);
                 // this->print_node(v.more);
-                if (k.k >= v.k.k) {
+                if (k >= v.k) {
                     // std::cout << "more ! : " << v.k << std::endl;
                     tmp = v.more;
                     continue;
                 }
-                if (k.k < v.k.k) {
+                if (k < v.k) {
                     // std::cout << "less ! : " << v.k << std::endl;
                     tmp = v.less;
                     break;
@@ -309,5 +395,7 @@ namespace storage {
             return this->tree_search(k, tmp);
         }
     };
+    /* END BPTREE Class*/
+
 }
 #endif
