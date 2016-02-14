@@ -39,4 +39,7 @@ int main() {
         std::cout << *v << std::endl;
     }
 
+    std::cout << "-----------" << std::endl;
+    std::cout << test.size() << " | " << test.height() << std::endl;
+
 }

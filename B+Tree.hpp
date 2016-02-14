@@ -104,7 +104,7 @@ namespace storage {
                 this->split(page);
             }
             this->print_tree(this->root);
-            this->size++;
+            this->nb_values++;
         }
 
         void print_tree(std::shared_ptr<node<Value>> root) {
@@ -157,7 +157,7 @@ namespace storage {
             }
             this->remove_by_key(k, page);
             this->print_tree(this->root);
-            this->size--;
+            this->nb_values--;
             return true;
         }
         void print_node(std::shared_ptr<node<Value>> root) {
@@ -176,15 +176,29 @@ namespace storage {
             index->value = std::move(tmp);
             return true;
         }
+        // return the number of values currently in the tree. Nothing to do with the height
+        size_t size() {
+            return this->nb_values;
+        }
+        // return the height of your bptree
+        size_t height() {
+            return this->height(this->root);
+        }
+
     private:
         const size_t fanout;
-        size_t size = 0;
         std::shared_ptr<node<Value>> root;
-
+        size_t nb_values = 0;
         std::shared_ptr<node<Value>> search_node(key k) {
             return this->tree_search(k, this->root);
         }
 
+        size_t height(std::shared_ptr<node<Value>> root) {
+            if (root == nullptr) {
+                return 0;
+            }
+            return 1 + this->height(root->children[0].less);
+        }
 
         void print_tree(std::shared_ptr<node<Value>> page, size_t level) {
             if (page == nullptr) return ;
@@ -337,8 +351,6 @@ namespace storage {
                 }
             );
         }
-
-
 
         // when we delete one node or leaf, we want their direct siblings to just jump it in term of prev / next ptrs ..
         void jump_node(std::shared_ptr<node<Value>> page) {
