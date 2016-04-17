@@ -86,7 +86,12 @@ struct index {
         return *this;
     }
 };
+template <typename Value>
 
+std::ostream& operator<<(std::ostream& os, const index<Value>& obj) {
+    os << "key : " << obj.k << " value : " << ((obj.value) ? *(obj.value) : "NO VALUE");
+    return os;
+}
 template <typename Value>
 struct node {
     std::shared_ptr<node> parent;

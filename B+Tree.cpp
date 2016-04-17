@@ -23,10 +23,10 @@ int main() {
     // test.remove(storage::key("t5"));
     auto obj1 = test.search(storage::key("t12"));
     auto obj2 = test.search(storage::key("t5"));
-    std::cout << (**obj1) << std::endl;
+    std::cout << *(**obj1).value << std::endl;
 
     test.update(storage::key("t12"), "42");
-    std::cout << (**obj1) << std::endl;
+    std::cout << *(**obj1).value << std::endl;
 
     std::cout << "-----------" << std::endl;
     auto p = test.search_range("t1", "t5");

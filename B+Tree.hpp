@@ -19,7 +19,6 @@ namespace storage {
                 bool operator!=(const iterator& rhs) {
                     return (this->pointer != rhs.pointer || (this->pos) != (rhs.pos));
                 }
-                //etc)
 
                 void operator++() {
                     ++this->pos;
@@ -31,10 +30,10 @@ namespace storage {
                     }
                 }
 
-                std::optional<Value> operator*() {
-                    std::optional<Value> option;
+                std::optional<index<Value>> operator*() {
+                    std::optional<index<Value>> option;
                     if (this->pointer) {
-                        option = this->pointer->children[this->pos].value;
+                        return std::experimental::make_optional(this->pointer->children[this->pos]);
                     }
                     return option;
                 }
